@@ -1,0 +1,166 @@
+FINISH  
+/CLEAR,START
+/PREP7  
+! No polynomial elements
+!/PMETH,OFF,1
+
+! Set electric preferences
+KEYW,PR_ELMAG,1
+KEYW,MAGELC,1   
+
+! Select element
+ET,1,SOLID123
+
+! Material properties
+!For Copper 
+MP,PERX,1,1e10  	  ! Relative permittivity 
+MP,RSVX,1,0.0  ! Resistivity in Omega.mm
+!For Gas
+MP,PERX,2,1.0   	  ! Relative permittivity
+!For FR4
+MP,PERX,3,4.0   	  ! Permittivity of FR4
+!MP,RSVX,3,1e15	  ! Resistivity in Omega.mm
+
+! Geometry parameters
+pitch =  0.45   ! Distance between holes, in mm
+h_fr4 = 0.25    ! Thickness of the FR4 layer, in mm
+h_cu =  0.035    ! Thickness of the copper layers, in mm
+out_dia = 0.30  ! Hole outer diameter, in mm
+in_dia = 0.20   ! Hole diameter in the centre, in mm
+h_drift = 5.0   ! Thickness of the drift region in mm
+h_ind = 2.5     ! Thickness of the induction gap in mm
+
+!Making the volume: FR4 (1), lower Cu layer (2), upper Cu layer (3) and gas (4)
+BLOCK, 0,pitch/2, 0,pitch*sqrt(3)/2, -h_fr4/2,h_fr4/2
+BLOCK, 0,pitch/2, 0,pitch*sqrt(3)/2, -h_fr4/2-h_cu,-h_fr4/2
+BLOCK, 0,pitch/2, 0,pitch*sqrt(3)/2, h_fr4/2,h_fr4/2+h_cu
+BLOCK, 0,pitch/2, 0,pitch*sqrt(3)/2, -h_ind,h_drift
+
+!Making the cutout pieces: 5,6,7
+WPOFF, 0,0,-h_fr4/2
+CYL4, 0,0,in_dia/2,,,,h_fr4
+CYL4, 0,0,out_dia/2,,,,-h_cu
+WPOFF, 0,0,h_fr4
+CYL4, 0,0,out_dia/2,,,,h_cu
+WPOFF, 0,0,-h_fr4/2
+
+VADD, 5,6,7 !adding 5,6,7 to one volume (8) and frees 5,6 and 7
+
+!Making the second hole
+WPOFF, pitch/2,pitch*sqrt(3)/2,-h_fr4/2
+CYL4, 0,0,in_dia/2,,,,h_fr4
+CYL4, 0,0,out_dia/2,,,,-h_cu
+WPOFF, 0,0,h_fr4
+CYL4, 0,0,out_dia/2,,,,h_cu
+WPOFF, -pitch/2,-pitch*sqrt(3)/2,-h_fr4/2
+
+VADD, 5,6,7 !adding 5,6,7 to one volume (9) anf frees 5,6 and 7
+
+!Subtract volume from FR4
+VSBV,1,8,,,KEEP !1 becomes 5
+VSBV,5,9,,,KEEP !5 becomes 1, So, no changes in volume numbering
+
+!Subtract volume from lower Cu layer
+VSBV,2,8,,,KEEP !2 becomes 5
+VSBV,5,9,,,KEEP !5 becomes 2
+
+!Subtract volume from upper Cu layer
+VSBV,3,8,,,KEEP !1 becomes 5
+VSBV,5,9,,,KEEP !5 becomes 3, So, no changes in volume numbering
+
+!Delete the holes
+VDEL,8,9
+
+! Subtract the kapton and metal from the gas (is 4, becomes 5)
+VSBV,  4, 1, , , KEEP   ! 4 -> 5
+VSBV,  5, 2, , , KEEP   ! 5 -> 4
+VSBV,  4, 3, , , KEEP   ! 4 -> 5
+
+! Glue everything together
+VGLUE, ALL
+
+! Which leaves us with 1 = FR4, 4 = lower metal, 5 = gas, 6 = upper metal
+/COLOR, VOLU, CYAN, 5
+/COLOR, VOLU, RED, 4
+/COLOR, VOLU, RED, 6
+/COLOR, VOLU, YGRE, 1
+
+! Assign material attributes
+VSEL, S,,, 1
+VATT, 3, ,1
+VSEL, S,,, 4
+VATT, 1, ,1
+VSEL, S,,, 5
+VATT, 2, ,1
+VSEL, S,,, 6
+VATT, 1, ,1
+
+! Voltage boundaries on the drift and induction plane
+ASEL, S, LOC, Z, h_drift
+DA, ALL, VOLT, -2500
+ASEL, S, LOC, Z, -h_ind
+DA, ALL, VOLT, 0
+
+! Symmetry boundary conditions on the sides
+VSEL, S,,,5
+ASLV, S
+ASEL, R, LOC, X, 0
+DA, ALL, SYMM
+VSEL, S,,,5
+ASLV, S
+ASEL, R, LOC, X, +pitch/2
+DA, ALL, SYMM
+VSEL, S,,,5
+ASLV, S
+ASEL, R, LOC, Y, 0
+DA, ALL, SYMM
+VSEL, S,,,5
+ASLV, S
+ASEL, R, LOC, Y, +sqrt(3)*pitch/2
+DA, ALL, SYMM
+
+VSEL, S,,,1
+ASLV, S
+ASEL, R, LOC, X, 0
+DA, ALL, SYMM
+VSEL, S,,,1
+ASLV, S
+ASEL, R, LOC, X, +pitch/2
+DA, ALL, SYMM
+VSEL, S,,,1
+ASLV, S
+ASEL, R, LOC, Y, 0
+DA, ALL, SYMM
+VSEL, S,,,1
+ASLV, S
+ASEL, R, LOC, Y, +sqrt(3)*pitch/2
+DA, ALL, SYMM
+
+! Voltage boundary conditions on the metal
+VSEL, S,,, 4
+ASLV, S
+DA, ALL, VOLT, -500
+VSEL, S,,, 6
+ASLV, S
+DA, ALL, VOLT, -1500
+
+! Meshing options
+VSEL, S,,, 1, 7
+ASLV, S
+
+MSHKEY,0
+SMRT, 1
+VSEL,S,,,1
+VSEL,A,,,5
+VMESH,ALL
+! VMESH,1,7
+
+! Solve the field
+/SOLU
+SOLVE   
+FINISH  
+
+! Display the solution
+/POST1  
+/EFACET,1   
+PLNSOL, VOLT,, 0

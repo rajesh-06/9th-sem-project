@@ -1,0 +1,3 @@
+/mnt/d/Project/test/Gem/build/CMakeFiles/gem.dir
+/mnt/d/Project/test/Gem/build/CMakeFiles/edit_cache.dir
+/mnt/d/Project/test/Gem/build/CMakeFiles/rebuild_cache.dir
